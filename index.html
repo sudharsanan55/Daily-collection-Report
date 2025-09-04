@@ -247,7 +247,9 @@
     }
 
     let total = 0;
-    view
+   const seenNumbers = new Set();   // ✅ track numbers already shown
+
+view
   .sort((a,b)=> (a.date+b.number).localeCompare(b.date+a.number))
   .forEach((e,i)=>{
     if(seenNumbers.has(e.number)) return;   // ✅ skip repeated numbers
@@ -268,6 +270,7 @@
       </td>`;
     tbody.appendChild(tr);
   });
+
   /*  view
       .sort((a,b)=> (a.date+b.number).localeCompare(b.date+a.number))
       .forEach((e,i)=>{
@@ -344,5 +347,6 @@
 </script>
 </body>
 </html>
+
 
 
