@@ -247,7 +247,8 @@
     }
 
     let total = 0;
-   const seenNumbers = new Set();   // ✅ track numbers already shown
+   
+   
 
 view
   .sort((a,b)=> (a.date+b.number).localeCompare(b.date+a.number))
@@ -270,26 +271,9 @@ view
       </td>`;
     tbody.appendChild(tr);
   });
+     const seenNumbers = new Set();   // ✅ track numbers already shown
 
-  /*  view
-      .sort((a,b)=> (a.date+b.number).localeCompare(b.date+a.number))
-      .forEach((e,i)=>{
-        total += e.amount;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${i+1}</td>
-          <td>${e.date}</td>
-          <td>${escapeHtml(e.number)}</td>
-          <td class="nowrap">${e.amount.toFixed(2)}</td>
-          <td>
-            <span class="pill ${e.gpay==='Yes'?'yes':'no'}">${e.gpay}</span>
-          </td>
-          <td>
-            <button data-id="${e.id}" class="ghost" title="Delete">🗑️</button>
-          </td>`;
-        tbody.appendChild(tr);
-      });
-*/
+
     // Hook delete buttons
     tbody.querySelectorAll('button[data-id]').forEach(btn=>{
       btn.addEventListener('click', ev => {
@@ -347,6 +331,7 @@ view
 </script>
 </body>
 </html>
+
 
 
 
