@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daily Collection Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#22c55e; --ring:#22c55e33;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(180deg,#0b1022,#0f172a 25%,#0b1022);color:var(--text)}
+    .container{max-width:1100px;margin:32px auto;padding:0 16px}
+    .grid{display:grid;gap:16px}
+    .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .card{background:rgba(17,24,39,.75);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .card h2{margin:0 0 12px 0;font-size:20px;font-weight:700}
+    .card .content{padding:18px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input,select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:#0b1120;color:var(--text);outline:none}
+    input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+    .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .btns{display:flex;flex-wrap:wrap;gap:10px}
+    button{appearance:none;border:1px solid rgba(255,255,255,.08);background:#0b1120;color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600}
+    button.primary{background:var(--accent);border-color:var(--accent);color:#08160f}
+    button.ghost{background:transparent}
+    button:focus{outline:none;box-shadow:0 0 0 4px var(--ring)}
+    .tablewrap{overflow:auto;border-radius:14px;border:1px solid rgba(255,255,255,.08)}
+    table{width:100%;border-collapse:collapse;background:#0b1120}
+    th,td{padding:12px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06);white-space:nowrap}
+    th{font-size:12px;color:#a6adbb;text-transform:uppercase;letter-spacing:.06em}
+    tfoot td{font-weight:700}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px}
+    .yes{background:#052e1a;color:#8ff0b1;border:1px solid #1d7a4a}
+    .no{background:#000000;color:#f0a28f;border:1px solid #7a1d1d}
+    .empty{color:#94a3b8;text-align:center;padding:22px}
+    .small{font-size:12px;color:#94a3b8}
+    .danger{color:#ff6b6b}
+    .success{color:#7cf29a}
+    .right{display:flex;justify-content:flex-end;gap:10px}
+    .nowrap{white-space:nowrap}
+  </style>
+  <!-- SheetJS for .xlsx export (works when you open this file in a browser with internet) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header class="grid" style="gap:10px;margin-bottom:18px">
+      <h1 style="margin:0;font-size:28px">💼 Daily Collection Report</h1>
+      <p class="small" style="margin:0">Fields marked with * are required. Save entries locally and export to Excel/CSV for sharing.</p>
+    </header>
+
+    <section class="grid grid-2" style="align-items:start">
+      <div class="card">
+        <div class="content">
+          <h2>New Entry</h2>
+          <form id="entryForm">
+            <div class="row">
+              <div>
+                <label for="date">* Date</label>
+                <input type="date" id="date" required />
+              </div>
+              <div>
+                <label for="number">* Number</label>
+                <input type="text" id="number" placeholder="Enter Number" required />
+              </div>
+            </div>
+            <div class="row" style="margin-top:12px">
+              <div>
+                <label for="amount">* Amount</label>
+                <input type="number" id="amount" placeholder="0" min="0" step="0.01" required />
+              </div>
+              <div>
+                <label for="gpay">* G Pay</label>
+                <select id="gpay" required>
+                  <option value="">Select…</option>
+                  <option>Yes</option>
+                  <option>No</option>
+                </select>
+              </div>
+            </div>
+            <div class="btns" style="margin-top:16px">
+              <button type="submit" class="primary">Add Entry</button>
+              <button type="reset" class="ghost" id="resetBtn">Reset</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="content">
+          <h2>Filters & Export</h2>
+          <div class="row">
+            <div>
+              <label for="filterDate">Filter by Date</label>
+              <input type="date" id="filterDate" />
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <div class="btns">
+                <button id="clearFilter" class="ghost">Clear Filter</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="btns" style="margin-top:10px">
+            <button id="exportCSV">Export CSV</button>
+            <button id="exportXLSX">Export Excel (.xlsx)</button>
+            <button id="printPage" class="ghost">Print</button>
+            <button id="clearAll" class="ghost danger">Delete All</button>
+          </div>
+          <p class="small" style="margin-top:8px">Data is saved in your browser (local only). Export before clearing.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <div class="content">
+        <h2>Entries</h2>
+        <div class="tablewrap">
+          <table id="entriesTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Number</th>
+                <th class="nowrap">Amount (₹)</th>
+                <th>G Pay</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="6" class="empty">No entries yet. Add your first record above.</td></tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3">Total</td>
+                <td id="totalAmount">0.00</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>    <!-- Monthly Report Section -->
+    <section class="card" style="margin-top:18px">
+      <div class="content">
+        <h2>📊 Monthly Report</h2>
+        <div class="tablewrap">
+          <table id="monthlyTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Month</th>
+                <th>Total Amount (₹)</th>
+                <th>Entries</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyBody">
+              <tr><td colspan="4" class="empty">No monthly data yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+
+<script>
+  // --- Utilities ---
+  const $ = s => document.querySelector(s);
+  const pad = n => String(n).padStart(2,'0');
+  const todayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  };
+  const storageKey = 'daily-collections-v1';
+
+  function loadEntries(){
+    try{ return JSON.parse(localStorage.getItem(storageKey)) || [] }catch{ return [] }
+  }
+  function saveEntries(list){ localStorage.setItem(storageKey, JSON.stringify(list)); }
+
+  // --- State ---
+  let entries = loadEntries();
+
+  // --- Init ---
+  $('#date').value = todayStr();
+  $('#filterDate').value = '';
+  render();
+
+  // --- Form Submit ---
+  $('#entryForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const date = $('#date').value;
+    const number = $('#number').value.trim();
+    const amount = parseFloat($('#amount').value);
+    const gpay = $('#gpay').value;
+
+    if(!date || !number || isNaN(amount) || !gpay){
+      alert('Please fill all required fields.');
+      return;
+    }
+    const entry = { id:crypto.randomUUID(), date, number, amount:Math.round(amount*100)/100, gpay };
+    entries.push(entry);
+    saveEntries(entries);
+    e.target.reset();
+    $('#date').value = todayStr();
+    render();
+  });
+
+  // --- Delete All ---
+  $('#clearAll').addEventListener('click', () => {
+    if(confirm('Delete ALL entries? This cannot be undone.')){
+      entries = [];
+      saveEntries(entries);
+      render();
+    }
+  });
+
+  // --- Print ---
+  $('#printPage').addEventListener('click', () => window.print());
+
+  // --- Filter ---
+  $('#filterDate').addEventListener('change', render);
+  $('#clearFilter').addEventListener('click', () => { $('#filterDate').value=''; render(); });
+
+  // --- Render Table ---
+  function render(){
+    const tbody = $('#tbody');
+    tbody.innerHTML='';
+
+    const filter = $('#filterDate').value;
+    const view = filter ? entries.filter(e => e.date === filter) : entries.slice();
+
+    if(view.length===0){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="6" class="empty">No entries${filter?` on ${filter}`:''}.</td>`;
+      tbody.appendChild(tr);
+      $('#totalAmount').textContent = '0.00';
+      return;
+    }
+
+    let total = 0;
+    view
+      .sort((a,b)=> (a.date+b.number).localeCompare(b.date+a.number))
+      .forEach((e,i)=>{
+        total += e.amount;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i+1}</td>
+          <td>${e.date}</td>
+          <td>${escapeHtml(e.number)}</td>
+          <td class="nowrap">${e.amount.toFixed(2)}</td>
+          <td>
+            <span class="pill ${e.gpay==='Yes'?'yes':'no'}">${e.gpay}</span>
+          </td>
+          <td>
+            <button data-id="${e.id}" class="ghost" title="Delete">🗑️</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+
+    // Hook delete buttons
+    tbody.querySelectorAll('button[data-id]').forEach(btn=>{
+      btn.addEventListener('click', ev => {
+        const id = ev.currentTarget.getAttribute('data-id');
+        if(confirm('Delete this row?')){
+          entries = entries.filter(x => x.id !== id);
+          saveEntries(entries);
+          render();
+        }
+      });
+    });
+
+    $('#totalAmount').textContent = total.toFixed(2);
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+  }
+
+  // --- Export CSV ---
+  $('#exportCSV').addEventListener('click', () => {
+    const filter = $('#filterDate').value;
+    const rows = [['Date','Number','Amount','G Pay']];
+    const data = (filter ? entries.filter(e=>e.date===filter) : entries);
+    data.forEach(e=> rows.push([e.date, e.number, e.amount, e.gpay]));
+    const total = data.reduce((s,e)=>s+e.amount,0);
+    rows.push([]);
+    rows.push(['Total','', total.toFixed(2), '']);
+
+    const csv = rows.map(r => r.map(v => String(v).includes(',')?`"${String(v).replace(/"/g,'""')}"`:v).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `daily-collection${filter?`-${filter}`:''}.csv`;
+    a.click();
+  });
+
+  // --- Export XLSX (needs SheetJS on the page) ---
+  $('#exportXLSX').addEventListener('click', () => {
+    const filter = $('#filterDate').value;
+    const data = (filter ? entries.filter(e=>e.date===filter) : entries)
+      .map(e => ({Date:e.date, Number:e.number, Amount:e.amount, 'G Pay':e.gpay}));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+
+    // Add total row
+    const total = data.reduce((s,e)=> s + Number(e.Amount||0), 0);
+    const lastRow = data.length + 2; // +1 header +1 empty
+    XLSX.utils.sheet_add_aoa(ws, [[""],["Total","", total, ""]], { origin: -1 });
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Report');
+    XLSX.writeFile(wb, `daily-collection${filter?`-${filter}`:''}.xlsx`);
+  });
+</script>
+</body>
+</html>
