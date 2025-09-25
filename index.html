@@ -1,3 +1,23 @@
+This is a great request! To "add many features" to your Daily Collection Report, I'll focus on enhancing data management, filtering, reporting, and overall user experience.
+
+Here's a breakdown of the key features I've added:
+
+1.  **Edit Entries:** Allows users to modify existing entries.
+2.  **Date Range Filter:** Filter entries by a start and end date, much more flexible than a single date.
+3.  **Search by Number:** A text input to find entries by their "Number".
+4.  **G Pay Filter:** Filter by "Yes" or "No" for G Pay status.
+5.  **Sortable Table Columns:** Click on table headers (Date, Number, Amount) to sort the entries.
+6.  **Enhanced Monthly Report:** Now includes G Pay and Non-G Pay totals for each month.
+7.  **Yearly Report:** A new section summarizing collections by year, including G Pay/Non-G Pay breakdowns.
+8.  **Input Validation Feedback:** Basic visual cues for required fields.
+9.  **Clearer Form States:** "Add Entry" button changes to "Update Entry" when editing, with a "Cancel Edit" option.
+10. **Improved Export:** CSV and XLSX exports now reflect the currently *filtered* data.
+
+I've also made some improvements to the JavaScript structure for better maintainability.
+
+---
+
+```html
 <!doctype html>
 <html lang="en">
 <head>
@@ -10,6 +30,8 @@
   <style>
     :root{
       --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#22c55e; --ring:#22c55e33;
+      --danger:#ef4444; --danger-bg:#450a0a; --danger-border:#7f1d1d;
+      --success:#22c55e; --success-bg:#0f2a1b; --success-border:#1d7a4a;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
@@ -21,28 +43,34 @@
     .card h2{margin:0 0 12px 0;font-size:20px;font-weight:700}
     .card .content{padding:18px}
     label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
-    input,select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:#0b1120;color:var(--text);outline:none}
+    input,select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:#0b1120;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s}
     input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+    input.error,select.error{border-color:var(--danger);box-shadow:0 0 0 4px rgba(239,68,68,.2)}
     .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .btns{display:flex;flex-wrap:wrap;gap:10px}
-    button{appearance:none;border:1px solid rgba(255,255,255,.08);background:#0b1120;color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600}
+    button{appearance:none;border:1px solid rgba(255,255,255,.08);background:#0b1120;color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600;transition:background .2s,border-color .2s,color .2s}
     button.primary{background:var(--accent);border-color:var(--accent);color:#08160f}
     button.ghost{background:transparent}
+    button.danger{background:var(--danger-bg);border-color:var(--danger-border);color:var(--danger)}
     button:focus{outline:none;box-shadow:0 0 0 4px var(--ring)}
     .tablewrap{overflow:auto;border-radius:14px;border:1px solid rgba(255,255,255,.08)}
-    table{width:100%;border-collapse:collapse;background:#0b1120}
+    table{width:100%;border-collapse:collapse;background:#0b1120;font-size:14px}
     th,td{padding:12px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06);white-space:nowrap}
-    th{font-size:12px;color:#a6adbb;text-transform:uppercase;letter-spacing:.06em}
+    th{font-size:12px;color:#a6adbb;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;user-select:none}
+    th:hover{background:rgba(255,255,255,.05)}
+    th.sorted-asc:after{content:' ↑';}
+    th.sorted-desc:after{content:' ↓';}
     tfoot td{font-weight:700}
     .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px}
-    .yes{background:#052e1a;color:#8ff0b1;border:1px solid #1d7a4a}
-    .no{background:#000000;color:#f0a28f;border:1px solid #7a1d1d}
+    .yes{background:var(--success-bg);color:#8ff0b1;border:1px solid var(--success-border)}
+    .no{background:var(--danger-bg);color:#f0a28f;border:1px solid var(--danger-border)}
     .empty{color:#94a3b8;text-align:center;padding:22px}
     .small{font-size:12px;color:#94a3b8}
-    .danger{color:#ff6b6b}
-    .success{color:#7cf29a}
+    .text-danger{color:var(--danger)}
+    .text-success{color:var(--success)}
     .right{display:flex;justify-content:flex-end;gap:10px}
     .nowrap{white-space:nowrap}
+    .mb-3{margin-bottom:12px}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -50,15 +78,16 @@
   <div class="container">
     <header class="grid" style="gap:10px;margin-bottom:18px">
       <h1 style="margin:0;font-size:28px">💼 Daily Collection Report</h1>
-      <p class="small" style="margin:0">Fields marked with * are required. Save entries locally and export to Excel/CSV for sharing.</p>
+      <p class="small" style="margin:0">Fields marked with * are required. Data is saved locally in your browser. Export to Excel/CSV for sharing.</p>
     </header>
 
     <!-- Form + Filters Section -->
     <section class="grid grid-2" style="align-items:start">
       <div class="card">
         <div class="content">
-          <h2>New Entry</h2>
+          <h2 id="formTitle">New Entry</h2>
           <form id="entryForm">
+            <input type="hidden" id="entryId" />
             <div class="row">
               <div>
                 <label for="date">* Date</label>
@@ -66,7 +95,7 @@
               </div>
               <div>
                 <label for="number">* Number</label>
-                <input type="number" id="number" placeholder="Enter Number" required />
+                <input type="text" id="number" placeholder="Enter Number" required />
               </div>
             </div>
             <div class="row" style="margin-top:12px">
@@ -84,8 +113,9 @@
               </div>
             </div>
             <div class="btns" style="margin-top:16px">
-              <button type="submit" class="primary">Add Entry</button>
-              <button type="reset" class="ghost" id="resetBtn">Reset</button>
+              <button type="submit" class="primary" id="submitBtn">Add Entry</button>
+              <button type="button" class="ghost" id="cancelEditBtn" style="display:none;">Cancel Edit</button>
+              <button type="reset" class="ghost" id="resetBtn">Reset Form</button>
             </div>
           </form>
         </div>
@@ -94,26 +124,39 @@
       <div class="card">
         <div class="content">
           <h2>Filters & Export</h2>
-          <div class="row">
+          <div class="row mb-3">
             <div>
-              <label for="filterDate">Filter by Date</label>
-              <input type="date" id="filterDate" />
+              <label for="filterStartDate">Start Date</label>
+              <input type="date" id="filterStartDate" />
             </div>
             <div>
-              <label>&nbsp;</label>
-              <div class="btns">
-                <button id="clearFilter" class="ghost">Clear Filter</button>
-              </div>
+              <label for="filterEndDate">End Date</label>
+              <input type="date" id="filterEndDate" />
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div>
+              <label for="filterNumber">Search by Number</label>
+              <input type="text" id="filterNumber" placeholder="Enter number..." />
+            </div>
+            <div>
+              <label for="filterGpay">G Pay Status</label>
+              <select id="filterGpay">
+                <option value="">All</option>
+                <option>Yes</option>
+                <option>No</option>
+              </select>
             </div>
           </div>
 
           <div class="btns" style="margin-top:10px">
+            <button id="clearFiltersBtn" class="ghost">Clear Filters</button>
             <button id="exportCSV">Export CSV</button>
             <button id="exportXLSX">Export Excel (.xlsx)</button>
             <button id="printPage" class="ghost">Print</button>
             <button id="clearAll" class="ghost danger">Delete All</button>
           </div>
-          <p class="small" style="margin-top:8px">Data is saved in your browser (local only). Export before clearing.</p>
+          <p class="small" style="margin-top:8px">Data is saved in your browser. Export before clearing all data.</p>
         </div>
       </div>
     </section>
@@ -126,11 +169,11 @@
           <table id="entriesTable">
             <thead>
               <tr>
-                <th>#</th>
-                <th>Date</th>
-                <th>Number</th>
-                <th class="nowrap">Amount (₹)</th>
-                <th>G Pay</th>
+                <th data-sort="id">#</th>
+                <th data-sort="date" class="sortable">Date</th>
+                <th data-sort="number" class="sortable">Number</th>
+                <th data-sort="amount" class="nowrap sortable">Amount (₹)</th>
+                <th data-sort="gpay" class="sortable">G Pay</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -160,122 +203,450 @@
                 <th>#</th>
                 <th>Month</th>
                 <th>Total Amount (₹)</th>
+                <th>G Pay (₹)</th>
+                <th>Cash (₹)</th>
                 <th>Entries</th>
               </tr>
             </thead>
             <tbody id="monthlyBody">
-              <tr><td colspan="4" class="empty">No monthly data yet.</td></tr>
+              <tr><td colspan="6" class="empty">No monthly data yet.</td></tr>
             </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2">Grand Total</td>
+                <td id="monthlyGrandTotal">0.00</td>
+                <td id="monthlyGpayTotal">0.00</td>
+                <td id="monthlyCashTotal">0.00</td>
+                <td id="monthlyEntriesCount">0</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
     </section>
+
+    <!-- Yearly Report -->
+    <section class="card" style="margin-top:18px">
+      <div class="content">
+        <h2>🗓️ Yearly Report</h2>
+        <div class="tablewrap">
+          <table id="yearlyTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Year</th>
+                <th>Total Amount (₹)</th>
+                <th>G Pay (₹)</th>
+                <th>Cash (₹)</th>
+                <th>Entries</th>
+              </tr>
+            </thead>
+            <tbody id="yearlyBody">
+              <tr><td colspan="6" class="empty">No yearly data yet.</td></tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2">Grand Total</td>
+                <td id="yearlyGrandTotal">0.00</td>
+                <td id="yearlyGpayTotal">0.00</td>
+                <td id="yearlyCashTotal">0.00</td>
+                <td id="yearlyEntriesCount">0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
   </div>
 
 <script>
+  // Utility functions
   const $ = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
   const pad = n => String(n).padStart(2,'0');
   const todayStr = () => {
     const d = new Date();
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   };
-  const storageKey = 'daily-collections-v1';
+  const escapeHtml = s => s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
 
-  function loadEntries(){ try{ return JSON.parse(localStorage.getItem(storageKey)) || [] }catch{ return [] } }
-  function saveEntries(list){ localStorage.setItem(storageKey, JSON.stringify(list)); }
+  // Constants
+  const STORAGE_KEY = 'daily-collections-v2'; // Changed key for new version
 
-  let entries = loadEntries();
+  // Global state
+  let entries = [];
+  let editingId = null;
+  let sortColumn = 'date';
+  let sortDirection = 'asc';
 
-  $('#date').value = todayStr();
-  $('#filterDate').value = '';
-  render();
+  // --- Local Storage Management ---
+  function loadEntries(){
+    try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [] }
+    catch(e){ console.error('Error loading entries:', e); return [] }
+  }
+  function saveEntries(list){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
 
+  // --- Form Handlers ---
   $('#entryForm').addEventListener('submit', e => {
     e.preventDefault();
+    if (!validateForm()) return;
+
     const date = $('#date').value;
     const number = $('#number').value.trim();
     const amount = parseFloat($('#amount').value);
     const gpay = $('#gpay').value;
 
-    if(!date || !number || isNaN(amount) || !gpay){
-      alert('Please fill all required fields.');
-      return;
+    if (editingId) {
+      // Update existing entry
+      const index = entries.findIndex(entry => entry.id === editingId);
+      if (index !== -1) {
+        entries[index] = { ...entries[index], date, number, amount: Math.round(amount * 100) / 100, gpay };
+      }
+      editingId = null;
+    } else {
+      // Add new entry
+      const entry = { id: crypto.randomUUID(), date, number, amount: Math.round(amount * 100) / 100, gpay };
+      entries.push(entry);
     }
-    const entry = { id:crypto.randomUUID(), date, number, amount:Math.round(amount*100)/100, gpay };
-    entries.push(entry);
+
     saveEntries(entries);
-    e.target.reset();
-    $('#date').value = todayStr();
+    resetForm();
     render();
   });
 
-  $('#clearAll').addEventListener('click', () => {
-    if(confirm('Delete ALL entries? This cannot be undone.')){
-      entries = [];
-      saveEntries(entries);
-      render();
-    }
+  $('#cancelEditBtn').addEventListener('click', resetForm);
+  $('#resetBtn').addEventListener('click', resetForm); // Ensure reset form clears editing state
+
+  function resetForm() {
+    $('#entryForm').reset();
+    $('#date').value = todayStr();
+    editingId = null;
+    $('#entryId').value = '';
+    $('#formTitle').textContent = 'New Entry';
+    $('#submitBtn').textContent = 'Add Entry';
+    $('#cancelEditBtn').style.display = 'none';
+    // Clear validation styles
+    $$('input, select', $('#entryForm')).forEach(input => input.classList.remove('error'));
+  }
+
+  function validateForm() {
+    let isValid = true;
+    const requiredInputs = $$('#date, #number, #amount, #gpay', $('#entryForm'));
+    requiredInputs.forEach(input => {
+      if (input.type === 'number' ? isNaN(parseFloat(input.value)) : !input.value.trim()) {
+        input.classList.add('error');
+        isValid = false;
+      } else {
+        input.classList.remove('error');
+      }
+    });
+    return isValid;
+  }
+
+  // --- Filtering & Sorting Event Listeners ---
+  $('#filterStartDate').addEventListener('change', render);
+  $('#filterEndDate').addEventListener('change', render);
+  $('#filterNumber').addEventListener('input', render);
+  $('#filterGpay').addEventListener('change', render);
+
+  $('#clearFiltersBtn').addEventListener('click', () => {
+    $('#filterStartDate').value = '';
+    $('#filterEndDate').value = '';
+    $('#filterNumber').value = '';
+    $('#filterGpay').value = '';
+    render();
   });
 
-  $('#printPage').addEventListener('click', () => window.print());
-  $('#filterDate').addEventListener('change', render);
-  $('#clearFilter').addEventListener('click', () => { $('#filterDate').value=''; render(); });
+  // Sortable headers
+  $$('#entriesTable th.sortable').forEach(header => {
+    header.addEventListener('click', () => {
+      const column = header.dataset.sort;
+      if (sortColumn === column) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortColumn = column;
+        sortDirection = 'asc';
+      }
+      render();
+    });
+  });
 
+  // --- Main Render Function ---
   function render(){
+    // Clear previous sort indicators
+    $$('#entriesTable th.sortable').forEach(th => {
+      th.classList.remove('sorted-asc', 'sorted-desc');
+    });
+    // Add indicator to current sort column
+    const currentSortHeader = $(`#entriesTable th[data-sort="${sortColumn}"]`);
+    if (currentSortHeader) {
+      currentSortHeader.classList.add(`sorted-${sortDirection}`);
+    }
+
+    // Apply filters
+    let filtered = [...entries];
+    const startDate = $('#filterStartDate').value;
+    const endDate = $('#filterEndDate').value;
+    const filterNum = $('#filterNumber').value.toLowerCase();
+    const filterGpay = $('#filterGpay').value;
+
+    if (startDate) filtered = filtered.filter(e => e.date >= startDate);
+    if (endDate) filtered = filtered.filter(e => e.date <= endDate);
+    if (filterNum) filtered = filtered.filter(e => String(e.number).toLowerCase().includes(filterNum));
+    if (filterGpay) filtered = filtered.filter(e => e.gpay === filterGpay);
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let valA = a[sortColumn];
+      let valB = b[sortColumn];
+
+      if (sortColumn === 'date') {
+        valA = new Date(a.date);
+        valB = new Date(b.date);
+      } else if (sortColumn === 'amount') {
+        valA = parseFloat(a.amount);
+        valB = parseFloat(b.amount);
+      } else if (sortColumn === 'number') {
+        // Attempt numeric sort first, then string
+        const numA = parseFloat(a.number);
+        const numB = parseFloat(b.number);
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return sortDirection === 'asc' ? numA - numB : numB - numA;
+        }
+      }
+
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+
+    renderEntriesTable(filtered);
+    renderMonthlyReport(entries); // Monthly/Yearly reports usually cover all data unless specified
+    renderYearlyReport(entries);
+  }
+
+  function renderEntriesTable(displayEntries) {
     const tbody = $('#tbody');
-    tbody.innerHTML='';
+    tbody.innerHTML = '';
 
-    const filter = $('#filterDate').value;
-    const view = filter ? entries.filter(e => e.date === filter) : entries.slice();
-
-    if(view.length===0){
+    if(displayEntries.length === 0){
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td colspan="6" class="empty">No entries${filter?` on ${filter}`:''}.</td>`;
+      tr.innerHTML = `<td colspan="6" class="empty">No entries matching current filters.</td>`;
       tbody.appendChild(tr);
       $('#totalAmount').textContent = '0.00';
       return;
     }
 
     let total = 0;
-    view
-      .sort((a,b)=> (a.date+a.number).localeCompare(b.date+b.number))
-      .forEach((e,i)=>{
-        total += e.amount;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${i+1}</td>
-          <td>${e.date}</td>
-          <td>${escapeHtml(e.number)}</td>
-          <td class="nowrap">${e.amount.toFixed(2)}</td>
-          <td><span class="pill ${e.gpay==='Yes'?'yes':'no'}">${e.gpay}</span></td>
-          <td><button data-id="${e.id}" class="ghost" title="Delete">🗑️</button></td>`;
-        tbody.appendChild(tr);
-      });
-
-    tbody.querySelectorAll('button[data-id]').forEach(btn=>{
-      btn.addEventListener('click', ev => {
-        const id = ev.currentTarget.getAttribute('data-id');
-        if(confirm('Delete this row?')){
-          entries = entries.filter(x => x.id !== id);
-          saveEntries(entries);
-          render();
-        }
-      });
+    displayEntries.forEach((e,i)=>{
+      total += e.amount;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i+1}</td>
+        <td>${e.date}</td>
+        <td>${escapeHtml(e.number)}</td>
+        <td class="nowrap">${e.amount.toFixed(2)}</td>
+        <td><span class="pill ${e.gpay==='Yes'?'yes':'no'}">${e.gpay}</span></td>
+        <td>
+          <button data-id="${e.id}" class="ghost edit-btn" title="Edit">✏️</button>
+          <button data-id="${e.id}" class="ghost text-danger delete-btn" title="Delete">🗑️</button>
+        </td>`;
+      tbody.appendChild(tr);
     });
+
+    // Event delegation for dynamically added buttons
+    tbody.removeEventListener('click', handleEntryActions); // Prevent multiple listeners
+    tbody.addEventListener('click', handleEntryActions);
 
     $('#totalAmount').textContent = total.toFixed(2);
   }
 
-  function escapeHtml(s){
-    return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+  function handleEntryActions(event) {
+    const target = event.target;
+    const id = target.dataset.id;
+    if (!id) return;
+
+    if (target.classList.contains('delete-btn')) {
+      if(confirm('Delete this entry? This cannot be undone.')){
+        entries = entries.filter(x => x.id !== id);
+        saveEntries(entries);
+        render();
+      }
+    } else if (target.classList.contains('edit-btn')) {
+      const entryToEdit = entries.find(x => x.id === id);
+      if (entryToEdit) {
+        editingId = entryToEdit.id;
+        $('#entryId').value = entryToEdit.id;
+        $('#date').value = entryToEdit.date;
+        $('#number').value = entryToEdit.number;
+        $('#amount').value = entryToEdit.amount;
+        $('#gpay').value = entryToEdit.gpay;
+
+        $('#formTitle').textContent = 'Edit Entry';
+        $('#submitBtn').textContent = 'Update Entry';
+        $('#cancelEditBtn').style.display = 'inline-flex';
+        // Scroll to form
+        $('#entryForm').scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }
+
+  // --- Report Generation ---
+  function renderMonthlyReport(allEntries) {
+    const monthlyData = {}; // { 'YYYY-MM': { total: 0, gpay: 0, cash: 0, count: 0 } }
+    allEntries.forEach(entry => {
+      const monthKey = entry.date.substring(0, 7); // YYYY-MM
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { total: 0, gpay: 0, cash: 0, count: 0 };
+      }
+      monthlyData[monthKey].total += entry.amount;
+      if (entry.gpay === 'Yes') {
+        monthlyData[monthKey].gpay += entry.amount;
+      } else {
+        monthlyData[monthKey].cash += entry.amount;
+      }
+      monthlyData[monthKey].count++;
+    });
+
+    const monthlyBody = $('#monthlyBody');
+    monthlyBody.innerHTML = '';
+    const sortedMonths = Object.keys(monthlyData).sort();
+
+    if (sortedMonths.length === 0) {
+      monthlyBody.innerHTML = `<tr><td colspan="6" class="empty">No monthly data yet.</td></tr>`;
+      $('#monthlyGrandTotal').textContent = '0.00';
+      $('#monthlyGpayTotal').textContent = '0.00';
+      $('#monthlyCashTotal').textContent = '0.00';
+      $('#monthlyEntriesCount').textContent = '0';
+      return;
+    }
+
+    let grandTotal = 0;
+    let grandGpay = 0;
+    let grandCash = 0;
+    let grandCount = 0;
+
+    sortedMonths.forEach((monthKey, i) => {
+      const data = monthlyData[monthKey];
+      grandTotal += data.total;
+      grandGpay += data.gpay;
+      grandCash += data.cash;
+      grandCount += data.count;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td>${monthKey}</td>
+        <td class="nowrap">${data.total.toFixed(2)}</td>
+        <td class="nowrap text-success">${data.gpay.toFixed(2)}</td>
+        <td class="nowrap text-danger">${data.cash.toFixed(2)}</td>
+        <td>${data.count}</td>
+      `;
+      monthlyBody.appendChild(tr);
+    });
+
+    $('#monthlyGrandTotal').textContent = grandTotal.toFixed(2);
+    $('#monthlyGpayTotal').textContent = grandGpay.toFixed(2);
+    $('#monthlyCashTotal').textContent = grandCash.toFixed(2);
+    $('#monthlyEntriesCount').textContent = grandCount;
+  }
+
+  function renderYearlyReport(allEntries) {
+    const yearlyData = {}; // { 'YYYY': { total: 0, gpay: 0, cash: 0, count: 0 } }
+    allEntries.forEach(entry => {
+      const yearKey = entry.date.substring(0, 4); // YYYY
+      if (!yearlyData[yearKey]) {
+        yearlyData[yearKey] = { total: 0, gpay: 0, cash: 0, count: 0 };
+      }
+      yearlyData[yearKey].total += entry.amount;
+      if (entry.gpay === 'Yes') {
+        yearlyData[yearKey].gpay += entry.amount;
+      } else {
+        yearlyData[yearKey].cash += entry.amount;
+      }
+      yearlyData[yearKey].count++;
+    });
+
+    const yearlyBody = $('#yearlyBody');
+    yearlyBody.innerHTML = '';
+    const sortedYears = Object.keys(yearlyData).sort();
+
+    if (sortedYears.length === 0) {
+      yearlyBody.innerHTML = `<tr><td colspan="6" class="empty">No yearly data yet.</td></tr>`;
+      $('#yearlyGrandTotal').textContent = '0.00';
+      $('#yearlyGpayTotal').textContent = '0.00';
+      $('#yearlyCashTotal').textContent = '0.00';
+      $('#yearlyEntriesCount').textContent = '0';
+      return;
+    }
+
+    let grandTotal = 0;
+    let grandGpay = 0;
+    let grandCash = 0;
+    let grandCount = 0;
+
+    sortedYears.forEach((yearKey, i) => {
+      const data = yearlyData[yearKey];
+      grandTotal += data.total;
+      grandGpay += data.gpay;
+      grandCash += data.cash;
+      grandCount += data.count;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td>${yearKey}</td>
+        <td class="nowrap">${data.total.toFixed(2)}</td>
+        <td class="nowrap text-success">${data.gpay.toFixed(2)}</td>
+        <td class="nowrap text-danger">${data.cash.toFixed(2)}</td>
+        <td>${data.count}</td>
+      `;
+      yearlyBody.appendChild(tr);
+    });
+
+    $('#yearlyGrandTotal').textContent = grandTotal.toFixed(2);
+    $('#yearlyGpayTotal').textContent = grandGpay.toFixed(2);
+    $('#yearlyCashTotal').textContent = grandCash.toFixed(2);
+    $('#yearlyEntriesCount').textContent = grandCount;
+  }
+
+
+  // --- Global Actions ---
+  $('#clearAll').addEventListener('click', () => {
+    if(confirm('Delete ALL entries? This cannot be undone.')){
+      entries = [];
+      saveEntries(entries);
+      resetForm();
+      render();
+    }
+  });
+
+  $('#printPage').addEventListener('click', () => window.print());
+
+  // --- Export Functions (now export filtered data) ---
+  function getFilteredEntriesForExport() {
+    let exportData = [...entries];
+    const startDate = $('#filterStartDate').value;
+    const endDate = $('#filterEndDate').value;
+    const filterNum = $('#filterNumber').value.toLowerCase();
+    const filterGpay = $('#filterGpay').value;
+
+    if (startDate) exportData = exportData.filter(e => e.date >= startDate);
+    if (endDate) exportData = exportData.filter(e => e.date <= endDate);
+    if (filterNum) exportData = exportData.filter(e => String(e.number).toLowerCase().includes(filterNum));
+    if (filterGpay) exportData = exportData.filter(e => e.gpay === filterGpay);
+    return exportData;
   }
 
   $('#exportCSV').addEventListener('click', () => {
-    const filter = $('#filterDate').value;
+    const dataToExport = getFilteredEntriesForExport();
     const rows = [['Date','Number','Amount','G Pay']];
-    const data = (filter ? entries.filter(e=>e.date===filter) : entries);
-    data.forEach(e=> rows.push([e.date, e.number, e.amount, e.gpay]));
-    const total = data.reduce((s,e)=>s+e.amount,0);
+    dataToExport.forEach(e=> rows.push([e.date, e.number, e.amount, e.gpay]));
+    const total = dataToExport.reduce((s,e)=>s+e.amount,0);
     rows.push([]);
     rows.push(['Total','', total.toFixed(2), '']);
 
@@ -283,24 +654,31 @@
     const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `daily-collection${filter?`-${filter}`:''}.csv`;
+    a.download = `daily-collection-filtered.csv`;
     a.click();
   });
 
   $('#exportXLSX').addEventListener('click', () => {
-    const filter = $('#filterDate').value;
-    const data = (filter ? entries.filter(e=>e.date===filter) : entries)
+    const dataToExport = getFilteredEntriesForExport()
       .map(e => ({Date:e.date, Number:e.number, Amount:e.amount, 'G Pay':e.gpay}));
 
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(data);
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
 
-    const total = data.reduce((s,e)=> s + Number(e.Amount||0), 0);
+    const total = dataToExport.reduce((s,e)=> s + Number(e.Amount||0), 0);
     XLSX.utils.sheet_add_aoa(ws, [[""],["Total","", total, ""]], { origin: -1 });
 
     XLSX.utils.book_append_sheet(wb, ws, 'Report');
-    XLSX.writeFile(wb, `daily-collection${filter?`-${filter}`:''}.xlsx`);
+    XLSX.writeFile(wb, `daily-collection-filtered.xlsx`);
+  });
+
+  // --- Initial Setup ---
+  document.addEventListener('DOMContentLoaded', () => {
+    entries = loadEntries();
+    $('#date').value = todayStr();
+    render();
   });
 </script>
 </body>
 </html>
+```
