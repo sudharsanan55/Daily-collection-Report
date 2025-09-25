@@ -44,7 +44,6 @@
     .right{display:flex;justify-content:flex-end;gap:10px}
     .nowrap{white-space:nowrap}
   </style>
-  <!-- SheetJS for .xlsx export (works when you open this file in a browser with internet) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -54,6 +53,7 @@
       <p class="small" style="margin:0">Fields marked with * are required. Save entries locally and export to Excel/CSV for sharing.</p>
     </header>
 
+    <!-- Form + Filters Section -->
     <section class="grid grid-2" style="align-items:start">
       <div class="card">
         <div class="content">
@@ -118,6 +118,7 @@
       </div>
     </section>
 
+    <!-- Daily Entries -->
     <section class="card" style="margin-top:18px">
       <div class="content">
         <h2>Entries</h2>
@@ -148,7 +149,7 @@
       </div>
     </section>
 
-  </div>    <!-- Monthly Report Section -->
+    <!-- Monthly Report -->
     <section class="card" style="margin-top:18px">
       <div class="content">
         <h2>📊 Monthly Report</h2>
@@ -169,10 +170,9 @@
         </div>
       </div>
     </section>
-
+  </div>
 
 <script>
-  // --- Utilities ---
   const $ = s => document.querySelector(s);
   const pad = n => String(n).padStart(2,'0');
   const todayStr = () => {
@@ -181,20 +181,15 @@
   };
   const storageKey = 'daily-collections-v1';
 
-  function loadEntries(){
-    try{ return JSON.parse(localStorage.getItem(storageKey)) || [] }catch{ return [] }
-  }
+  function loadEntries(){ try{ return JSON.parse(localStorage.getItem(storageKey)) || [] }catch{ return [] } }
   function saveEntries(list){ localStorage.setItem(storageKey, JSON.stringify(list)); }
 
-  // --- State ---
   let entries = loadEntries();
 
-  // --- Init ---
   $('#date').value = todayStr();
   $('#filterDate').value = '';
   render();
 
-  // --- Form Submit ---
   $('#entryForm').addEventListener('submit', e => {
     e.preventDefault();
     const date = $('#date').value;
@@ -214,7 +209,6 @@
     render();
   });
 
-  // --- Delete All ---
   $('#clearAll').addEventListener('click', () => {
     if(confirm('Delete ALL entries? This cannot be undone.')){
       entries = [];
@@ -223,14 +217,10 @@
     }
   });
 
-  // --- Print ---
   $('#printPage').addEventListener('click', () => window.print());
-
-  // --- Filter ---
   $('#filterDate').addEventListener('change', render);
   $('#clearFilter').addEventListener('click', () => { $('#filterDate').value=''; render(); });
 
-  // --- Render Table ---
   function render(){
     const tbody = $('#tbody');
     tbody.innerHTML='';
@@ -245,10 +235,10 @@
       $('#totalAmount').textContent = '0.00';
       return;
     }
+
     let total = 0;
-view
-    . view
-      .sort((a,b)=> (a.date+b.number).localeCompare(b.date+a.number))
+    view
+      .sort((a,b)=> (a.date+a.number).localeCompare(b.date+b.number))
       .forEach((e,i)=>{
         total += e.amount;
         const tr = document.createElement('tr');
@@ -257,15 +247,11 @@ view
           <td>${e.date}</td>
           <td>${escapeHtml(e.number)}</td>
           <td class="nowrap">${e.amount.toFixed(2)}</td>
-          <td>
-            <span class="pill ${e.gpay==='Yes'?'yes':'no'}">${e.gpay}</span>
-          </td>
-          <td>
-            <button data-id="${e.id}" class="ghost" title="Delete">🗑️</button>
-          </td>`;
+          <td><span class="pill ${e.gpay==='Yes'?'yes':'no'}">${e.gpay}</span></td>
+          <td><button data-id="${e.id}" class="ghost" title="Delete">🗑️</button></td>`;
         tbody.appendChild(tr);
       });
-    // Hook delete buttons
+
     tbody.querySelectorAll('button[data-id]').forEach(btn=>{
       btn.addEventListener('click', ev => {
         const id = ev.currentTarget.getAttribute('data-id');
@@ -284,7 +270,6 @@ view
     return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
   }
 
-  // --- Export CSV ---
   $('#exportCSV').addEventListener('click', () => {
     const filter = $('#filterDate').value;
     const rows = [['Date','Number','Amount','G Pay']];
@@ -302,7 +287,6 @@ view
     a.click();
   });
 
-  // --- Export XLSX (needs SheetJS on the page) ---
   $('#exportXLSX').addEventListener('click', () => {
     const filter = $('#filterDate').value;
     const data = (filter ? entries.filter(e=>e.date===filter) : entries)
@@ -311,9 +295,7 @@ view
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(data);
 
-    // Add total row
     const total = data.reduce((s,e)=> s + Number(e.Amount||0), 0);
-    const lastRow = data.length + 2; // +1 header +1 empty
     XLSX.utils.sheet_add_aoa(ws, [[""],["Total","", total, ""]], { origin: -1 });
 
     XLSX.utils.book_append_sheet(wb, ws, 'Report');
@@ -322,7 +304,3 @@ view
 </script>
 </body>
 </html>
-
-
-
-
